@@ -25,18 +25,30 @@ export async function signUp(req: FastifyRequest, rep: FastifyReply) {
 
   const { name, email, password, role, address, rg, cpf } = parsed.data;
 
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    return rep.status(409).send({ error: "Email already in use" });
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  await prisma.user.create({
-    data: {
-      name: name,
-      email: email,
-      password: hashedPassword,
-      address: address,
-      rg: rg,
-      cpf: cpf,
-      role: role,
-    },
-  });
-  return rep.status(201).send({ message: "User created successfully" });
+  try {
+    await prisma.user.create({
+      data: {
+        name: name,
+        email: email,
+        password: hashedPassword,
+        address: address,
+        rg: rg,
+        cpf: cpf,
+        role: role,
+      },
+    });
+    return rep.status(201).send({ message: "User created successfully" });
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      return rep.status(409).send({ error: "Email already in use" });
+    }
+    throw error;
+  }
 }
